@@ -11,8 +11,9 @@ def timed(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         t0 = datetime.now()
-        func(*args, **kwargs)
+        value = func(*args, **kwargs)
         print("Execution time:", (datetime.now() - t0))
+        return value
     return wrapper
 
 
@@ -56,19 +57,54 @@ class ModelTester(object):
         self.working_directory = wd
         self.train_x = None
         self.train_y = None
+        self.test_x = None
         self.model = None
+        self.model_name = None
+        self.predictions = None
+        self.full_data_loaded = False
 
     @timed
-    def load_data(self, limit=None):
+    def load_train_data(self, limit=None):
         self.train_x, self.train_y = get_train_data(path=path.join(self.working_directory, 'train.csv'), limit=limit)
-        return self.train_x, self.train_y
+        if not limit:
+            self.full_data_loaded = True
 
-    def set_model(self, m):
+    @timed
+    def load_test_data(self):
+        self.test_x = get_test_data(path=path.join(self.working_directory, 'test.csv'))
+
+    def set_model(self, m, name):
         self.model = m
+        self.model_name = name
 
     @timed
     def cross_validate(self, folds=5):
         # Get cross-validation scores
         return cross_validation.cross_val_score(self.model, self.train_x, self.train_y, cv=folds)
 
+    @timed
+    def fit(self):
+        print("Fitting model")
+        self.model.fit(self.train_x, self.train_y)
 
+    @timed
+    def predict(self):
+        print("Making predictions")
+        self.predictions = self.model.predict(self.test_x)
+
+    @timed
+    def write_submission(self, prefix):
+        output_path = path.join(self.working_directory, 'submission_{}.csv'.format(prefix))
+        print("Writing submission to file:", output_path)
+        write_predictions(self.predictions, output_path)
+
+    def prepare_submission(self, suffix=None):
+        print("Preparing submission for model: ", self.model_name)
+        if not suffix:
+            suffix = self.model_name
+        if not self.full_data_loaded:
+            self.load_train_data()
+        self.fit()
+        self.load_test_data()
+        self.predict()
+        self.write_submission(suffix)
