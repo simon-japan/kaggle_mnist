@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from functools import wraps
 from os import path
-from sklearn import cross_validation
+from sklearn.model_selection import cross_val_score
 
 
 def timed(func):
@@ -24,8 +24,8 @@ def _get_data(path):
     return df.as_matrix()
 
 
-def get_train_data(path='/Volumes/HD-LBU2/kaggle/mnist/train.csv', limit=None):
-    data = _get_data(path)
+def get_train_data(file_path, limit=None):
+    data = _get_data(file_path)
     np.random.shuffle(data)
     x = data[:, 1:] / 255.0  # data is from 0..255
     y = data[:, 0]
@@ -34,16 +34,16 @@ def get_train_data(path='/Volumes/HD-LBU2/kaggle/mnist/train.csv', limit=None):
     return x, y
 
 
-def get_test_data(path='/Volumes/HD-LBU2/kaggle/mnist/test.csv'):
-    return _get_data(path)
+def get_test_data(file_path):
+    return _get_data(file_path)
 
 
-def write_predictions(predictions, path='/Volumes/HD-LBU2/kaggle/mnist/submission.csv'):
+def write_predictions(predictions, file_path):
     df = pd.DataFrame({
         "ImageId": list(range(1, len(predictions)+1)),
         "Label": predictions
     })
-    df.to_csv(path, index=False, header=True)
+    df.to_csv(file_path, index=False, header=True)
 
 
 def show_figure(x):
@@ -65,13 +65,13 @@ class ModelTester(object):
 
     @timed
     def load_train_data(self, limit=None):
-        self.train_x, self.train_y = get_train_data(path=path.join(self.working_directory, 'train.csv'), limit=limit)
+        self.train_x, self.train_y = get_train_data(file_path=path.join(self.working_directory, 'train.csv'), limit=limit)
         if not limit:
             self.full_data_loaded = True
 
     @timed
     def load_test_data(self):
-        self.test_x = get_test_data(path=path.join(self.working_directory, 'test.csv'))
+        self.test_x = get_test_data(path.join(self.working_directory, 'test.csv'))
 
     def set_model(self, m, name):
         self.model = m
@@ -79,8 +79,7 @@ class ModelTester(object):
 
     @timed
     def cross_validate(self, folds=5):
-        # Get cross-validation scores
-        return cross_validation.cross_val_score(self.model, self.train_x, self.train_y, cv=folds)
+        return cross_val_score(self.model, self.train_x, self.train_y, cv=folds)
 
     @timed
     def fit(self):
@@ -102,9 +101,15 @@ class ModelTester(object):
         print("Preparing submission for model: ", self.model_name)
         if not suffix:
             suffix = self.model_name
-        if not self.full_data_loaded:
+        if self.full_data_loaded:
+            print("Full training set already loaded.")
+        else:
+            print("Will load full training set.")
             self.load_train_data()
         self.fit()
-        self.load_test_data()
+        if self.test_x:
+            print("Test set already loaded.")
+        else:
+            self.load_test_data()
         self.predict()
         self.write_submission(suffix)
