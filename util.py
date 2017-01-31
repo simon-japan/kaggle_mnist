@@ -17,9 +17,9 @@ def timed(func):
     return wrapper
 
 
-def _get_data(path):
-    print("Reading in data from {}".format(path))
-    df = pd.read_csv(path)
+def _get_data(file_path):
+    print("Reading in data from {}".format(file_path))
+    df = pd.read_csv(file_path)
     print("Done reading.")
     return df.as_matrix()
 
@@ -52,7 +52,6 @@ def show_figure(x):
 
 
 class ModelTester(object):
-
     def __init__(self, wd):
         self.working_directory = wd
         self.train_x = None
@@ -65,7 +64,8 @@ class ModelTester(object):
 
     @timed
     def load_train_data(self, limit=None):
-        self.train_x, self.train_y = get_train_data(file_path=path.join(self.working_directory, 'train.csv'), limit=limit)
+        self.train_x, self.train_y = get_train_data(file_path=path.join(self.working_directory, 'train.csv'),
+                                                    limit=limit)
         if not limit:
             self.full_data_loaded = True
 
@@ -113,3 +113,4 @@ class ModelTester(object):
             self.load_test_data()
         self.predict()
         self.write_submission(suffix)
+        print("Finished preparing submission for model: ", self.model_name)
